@@ -1,72 +1,75 @@
-# Load the package
-library(jpeg)
-library(ggplot2)
+#################################
+# CSC 591/791 HW2(Q1)           #
+# K-Means Clustering            #
+# Zexi Chen                     #
+#################################
 
-#url <- "http://www.wall321.com/thumbnails/detail/20120304/colorful%20birds%20tropical%20head%203888x2558%20wallpaper_www.wall321.com_40.jpg"
+rm(list=ls(all=T))
 
-# Download the file and save it as "Image.jpg" in the directory
-#dFile <- download.file(url, "Image.jpg")
-img <- readJPEG("Image.jpg") # Read the image
+library(mclust)
+library(lattice)
+library(MASS)
+library(car)
+library(flexclust)      # for kcca
+library(rgdal)          # read GeoTiff images into R
+library(ggplot2)         # plot the image
 
-# Obtain the dimension
-imgDm <- dim(img)
+
+start.time1 <- Sys.time()
+# read the image
+img <- readGDAL("ilk-3b-1024.tif")
+# the image has three bands 
+
+# plot the image
+#image(vec, col= grey(1:99/100), axes=TRUE)
+
+#names(vec)
+#str(img)
+# img@data // to get the data
+
+#plot(vec)
 
 # Assign RGB channels to data frame
 imgRGB <- data.frame(
-  x = rep(1:imgDm[2], each = imgDm[1]),
-  y = rep(imgDm[1]:1, imgDm[2]),
-  R = as.vector(img[,,1]),
-  G = as.vector(img[,,2]),
-  B = as.vector(img[,,3])
+  img[]
 )
 
+#names(imgRGB)
+
+#,
+#R = img@data$band1,
+#G = img@data$band2,
+#B = img@data$band3
+
+#imgRGB[c("band1", "band2", "band3")] <- imgRGB[c("band1", "band2", "band3")]/255
+
+# set the number of sampling.
+sampleNum <- floor(0.1*nrow(imgRGB))
+
+#ggplot(data = imgRGB, aes(x = x, y = y)) + 
+#  geom_point(colour = rgb(imgRGB[c("band1", "band2", "band3")]))
+
+samp <- sample(1:nrow(imgRGB), sampleNum,replace=FALSE)
+
+samImg <- imgRGB[samp,]
+
+kClusters <- 7
+start.time2 <- Sys.time()
+kMeans <- kcca(samImg[,c("band1","band2","band3")], k = kClusters)
+end.time2 <- Sys.time()
 
 
-# ggplot theme to be used
-plotTheme <- function() {
-  theme(
-    panel.background = element_rect(
-      size = 3,
-      colour = "black",
-      fill = "white"),
-    axis.ticks = element_line(
-      size = 2),
-    panel.grid.major = element_line(
-      colour = "gray80",
-      linetype = "dotted"),
-    panel.grid.minor = element_line(
-      colour = "gray90",
-      linetype = "dashed"),
-    axis.title.x = element_text(
-      size = rel(1.2),
-      face = "bold"),
-    axis.title.y = element_text(
-      size = rel(1.2),
-      face = "bold"),
-    plot.title = element_text(
-      size = 20,
-      face = "bold",
-      vjust = 1.5)
-  )
-}
-
-# Plot the image
-ggplot(data = imgRGB, aes(x = x, y = y)) + 
-  geom_point(colour = rgb(imgRGB[c("R", "G", "B")])) +
-  labs(title = "Original Image: Colorful Bird") +
-  xlab("x") +
-  ylab("y") +
-  plotTheme()
-
-
-
-kClusters <- 10
-kMeans <- kmeans(imgRGB[, c("R", "G", "B")], centers = kClusters)
-kColours <- rgb(kMeans$centers[kMeans$cluster,])
+# using predict to assign other points to the clusters
+start.time3 <- Sys.time()
+imgRGB.cl <- predict(kMeans,imgRGB[,c("band1","band2","band3")])
+end.time3 <- Sys.time()
 
 ggplot(data = imgRGB, aes(x = x, y = y)) + 
-  geom_point(colour = kColours) +
-  labs(title = paste("k-Means Clustering of", kClusters, "Colours")) +
-  xlab("x") +
-  ylab("y") + 
-  plotTheme()
+  geom_point(colour = c(imgRGB.cl)) +
+  labs(title = paste("k-Means Clustering of", kClusters, "Colours"))
+
+end.time1 <- Sys.time()
+
+time.takenTotal <- end.time1 - start.time1
+time.takenBuildModel <- end.time2-start.time2
+time.takenAssignPoint <- end.time3-start.time3
